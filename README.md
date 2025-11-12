@@ -1,95 +1,112 @@
-🚀 Gensyn-CodeAssist: VPS Deployment Tutorial
-This tutorial guides you through setting up, running, and securely accessing CodeAssist on a Virtual Private Server (VPS). We use Docker and uv for easy deployment and access the UI via a secure SSH tunnel on port 3001.
+# 💻 Gensyn-CodeAssist: VPS Deployment and Training Guide
 
-Recommended VPS Specifications: 4 CPU, 8 GB RAM, 32 GB Swap.
+This document outlines the professional deployment and operational procedure for running the Gensyn CodeAssist web interface on a Virtual Private Server (VPS). Access is secured via an SSH port-forwarding tunnel on host port `3001`.
 
-1. 🐳 Install Docker on VPS (Required)
-If Docker is not already installed on your Ubuntu/Debian-based VPS, use these commands.
+> **System Prerequisites:**
+> * **Operating System:** Ubuntu 20.04+ or Debian equivalent.
+> * **Minimum Specifications:** **4 CPU**, **8 GB RAM**, **32 GB Swap** (Crucial for model training).
 
-Copy and paste the entire block below into your VPS terminal:
+---
 
-Bash
+### 1. 🛠️ VPS Preparation: Dependencies and Setup
 
-# Update packages and install prerequisites
-sudo apt update
+This initial phase ensures all required software (Docker and package manager) is correctly installed.
+
+#### 1.1. Install Docker and Docker Compose Plugins
+
+Execute the following commands on your VPS to install the necessary Docker components.
+
+**➡️ Copy and paste the entire block below into your VPS terminal:**
+
+```bash
+# 1. Update system packages
+sudo apt update && sudo apt upgrade -y
+
+# 2. Install prerequisites for Docker installation
 sudo apt install -y ca-certificates curl gnupg lsb-release
 
-# Add Docker's official GPG key
+# 3. Add Docker's official GPG key and repository
 sudo install -m 0755 -d /etc/apt/keyrings
-curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+curl -fsSL [https://download.docker.com/linux/ubuntu/gpg](https://download.docker.com/linux/ubuntu/gpg) | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
 sudo chmod a+r /etc/apt/keyrings/docker.gpg
 
-# Add Docker repository to Apt sources
 echo \
-  "deb [arch="$(dpkg --print-architecture)" signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \
-  "$(. /etc/os-release && echo "$VERSION_CODENAME")" stable" | \
+  "deb [arch=\"$(dpkg --print-architecture)\" signed-by=/etc/apt/keyrings/docker.gpg] [https://download.docker.com/linux/ubuntu](https://download.docker.com/linux/ubuntu) \
+  \"$(. /etc/os-release && echo "$VERSION_CODENAME")\" stable" | \
   sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
 
-# Install Docker Engine
+# 4. Install Docker Engine and Plugins
 sudo apt update
 sudo apt install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
 
-# Add your user to the docker group to run commands without sudo
-sudo usermod -aG docker $USER
-echo "--- Docker installation complete. Please log out and log back in to apply group changes! ---"
-2. ⚙️ CodeAssist Setup on VPS
-After logging back into your VPS (to ensure Docker group permissions are active), execute the commands below.
+# 5. Add current user to the docker group for non-root execution
+sudo usermod -aG docker "$USER"
 
-Copy and paste the entire block below into your VPS terminal:
+echo "--- Docker installation complete. It is highly recommended to close your SSH session and reconnect to apply the user group changes! ---"
 
-Bash
+1.2. Install UV and Clone Repository
+These commands set up the project environment.
 
-# 1. Create a Screen Session (keeps process running if SSH drops)
+➡️ Copy and paste the entire block below into your VPS terminal:
+
+# 1. Start a persistent screen session
 screen -S codeassist
 
 # 2. Install UV (Python Packager)
-curl -LsSf https://astral.sh/uv/install.sh | sh
+curl -LsSf [https://astral.sh/uv/install.sh](https://astral.sh/uv/install.sh) | sh
 
-# 3. Reload Bash Configuration
+# 3. Reload Bash configuration to recognize 'uv'
 source ~/.bashrc
 
-# 4. Clone the Repository and Navigate
-git clone https://github.com/gensyn-ai/codeassist.git
+# 4. Clone the CodeAssist repository
+git clone [https://github.com/gensyn-ai/codeassist.git](https://github.com/gensyn-ai/codeassist.git)
 cd codeassist
 
-# 5. Configure Port in compose.yml (Change 3000:3000 to 3001:3000)
-# This uses 'sed' to apply the change without opening nano
+# 5. Modify compose.yml for host port 3001 (Avoids conflicts with port 3000)
+# Uses sed for non-interactive editing: 3000:3000 -> 3001:3000
 sed -i 's/3000:3000/3001:3000/g' compose.yml
 
-# 6. Run the Program
-# NOTE: Paste your Hugging Face token when prompted, then press Enter.
+# 6. Execute the application
+# NOTE: The application will prompt for your Hugging Face Access Token. 
+# Input will be hidden for security (invisible typing).
 uv run run.py --port 3001
-3. 🔐 SSH Tunnel Connection (Local PC)
-IMPORTANT: Open a new terminal (CMD/PowerShell/Terminal) on your local computer. This terminal must remain open while you use CodeAssist.
 
-Option A: Standard SSH Connection (Password or Default Key)
-Copy and paste this command into your local terminal:
+2. 🔐 Secure Local Access via SSH Tunnel
+The CodeAssist interface is designed to be accessed only via a secure local port-forwarding connection. This step must be performed on your LOCAL MACHINE.
 
-Bash
+Requirement: This terminal must remain open and connected for the duration of your session.
 
-# Replace [YOUR_VPS_IP] with the IP address of your server
+2.1. Tunnel using Password Authentication (or default SSH key)
+➡️ Copy and paste the block below into your Local Terminal:
+
+# Replace [YOUR_VPS_IP] with the server's public IP address.
 ssh -L 3001:localhost:3001 -L 8000:localhost:8000 -L 8008:localhost:8008 root@[YOUR_VPS_IP]
-Option B: Key-Based SSH Connection (AWS/GCP/Azure .pem key)
-Copy and paste this command into your local terminal:
+
+2.2. Tunnel using Key-Based Authentication (.pem file - common for Cloud VPS)
+If your VPS uses a private key (.pem, .ppk), you must explicitly specify its path.
+
+➡️ Copy and paste the block below into your Local Terminal:
 
 Bash
 
-# 1. Replace [PATH/TO/YOUR.pem] with the path to your key file (e.g., C:/Users/user/.ssh/key.pem)
+# 1. Replace [PATH/TO/YOUR.pem] (e.g., C:/Users/user/.ssh/key.pem)
 # 2. Replace [YOUR_SSH_USER] (e.g., ec2-user, ubuntu, yourname)
 # 3. Replace [YOUR_VPS_IP]
 ssh -i "[PATH/TO/YOUR.pem]" -L 3001:localhost:3001 -L 8000:localhost:8000 -L 8008:localhost:8008 [YOUR_SSH_USER]@[YOUR_VPS_IP]
-4. 🌐 Access & Complete Training
-4.1. Access the Web Interface
-Once the SSH tunnel is active, open your local browser to:
+3. ✅ Operation and Training Cycle
+3.1. Access the Web Interface
+Once the local tunnel is established, access the interface securely on your local browser:
 
-Copy and paste this URL:
+➡️ Access URL:
 
 http://localhost:3001
-4.2. Initiate Training
-After completing one or more code tasks in the web interface:
+3.2. Initiate Training and Verification
+After you have completed one or more assigned code tasks in the web interface:
 
-Return to your VPS terminal (the one running inside the screen session).
+Return to your VPS terminal (the one running CodeAssist inside the screen session).
 
-Press Ctrl + C to stop the uv run run.py process.
+Press Ctrl + C to terminate the uv run run.py process.
 
-The training process will start automatically. Wait for it to finish. Check your Hugging Face account to confirm the new model has been uploaded.
+The model training and upload process will commence automatically.
+
+Verification: Confirm the operation is successful by checking your Hugging Face account for the newly uploaded model artifact.
