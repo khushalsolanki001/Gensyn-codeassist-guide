@@ -1,139 +1,95 @@
-# 💻 Gensyn-codeassist-
+🚀 Gensyn-CodeAssist: VPS Deployment Tutorial
+This tutorial guides you through setting up, running, and securely accessing CodeAssist on a Virtual Private Server (VPS). We use Docker and uv for easy deployment and access the UI via a secure SSH tunnel on port 3001.
 
-## 🚀 TUTORIAL: Running CodeAssist on a VPS
+Recommended VPS Specifications: 4 CPU, 8 GB RAM, 32 GB Swap.
 
-This guide provides a robust and secure method for running the CodeAssist web interface on a Virtual Private Server (VPS). We utilize port `3001` to prevent common conflicts (e.g., with Swarm services on port `3000`) and access the UI via an SSH tunnel.
+1. 🐳 Install Docker on VPS (Required)
+If Docker is not already installed on your Ubuntu/Debian-based VPS, use these commands.
 
-> **Recommended VPS Specifications:** **4 CPU**, **8 GB RAM**, **32 GB Swap** (Consult your VPS provider's documentation on configuring swap memory).
+Copy and paste the entire block below into your VPS terminal:
 
----
+Bash
 
-### 1. ⚙️ Setup on the VPS (Remote Server Steps)
+# Update packages and install prerequisites
+sudo apt update
+sudo apt install -y ca-certificates curl gnupg lsb-release
 
-Perform these steps after logging into your VPS via SSH.
+# Add Docker's official GPG key
+sudo install -m 0755 -d /etc/apt/keyrings
+curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+sudo chmod a+r /etc/apt/keyrings/docker.gpg
 
-#### 1.1. Create a Screen Session
-A `screen` session prevents the process from terminating if your SSH connection is unexpectedly dropped.
+# Add Docker repository to Apt sources
+echo \
+  "deb [arch="$(dpkg --print-architecture)" signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \
+  "$(. /etc/os-release && echo "$VERSION_CODENAME")" stable" | \
+  sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
 
-```bash
+# Install Docker Engine
+sudo apt update
+sudo apt install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+
+# Add your user to the docker group to run commands without sudo
+sudo usermod -aG docker $USER
+echo "--- Docker installation complete. Please log out and log back in to apply group changes! ---"
+2. ⚙️ CodeAssist Setup on VPS
+After logging back into your VPS (to ensure Docker group permissions are active), execute the commands below.
+
+Copy and paste the entire block below into your VPS terminal:
+
+Bash
+
+# 1. Create a Screen Session (keeps process running if SSH drops)
 screen -S codeassist
-1.2. Install UV (Python Packager)
-Install the highly efficient UV package manager.
 
-Bash
+# 2. Install UV (Python Packager)
+curl -LsSf https://astral.sh/uv/install.sh | sh
 
-curl -LsSf [https://astral.sh/uv/install.sh](https://astral.sh/uv/install.sh) | sh
-1.3. Reload Bash Configuration
-Load the new uv path into your current shell session.
-
-Bash
-
+# 3. Reload Bash Configuration
 source ~/.bashrc
-1.4. Clone the Repository
-Clone the CodeAssist repository and navigate into the directory.
 
-Bash
-
-git clone [https://github.com/gensyn-ai/codeassist.git](https://github.com/gensyn-ai/codeassist.git)
+# 4. Clone the Repository and Navigate
+git clone https://github.com/gensyn-ai/codeassist.git
 cd codeassist
-1.5. Configure Port in compose.yml
-Edit the Docker Compose file to map the host port to 3001.
 
-Bash
+# 5. Configure Port in compose.yml (Change 3000:3000 to 3001:3000)
+# This uses 'sed' to apply the change without opening nano
+sed -i 's/3000:3000/3001:3000/g' compose.yml
 
-nano compose.yml
-Find the line containing 3000:3000 and change the host port (the first number) to 3001:
-
-YAML
-
-      - 3001:3000  # <--- Change this line
-Press Ctrl + X, then Y, then Enter to save and exit nano.
-
-1.6. Run the Program
-Start the CodeAssist application. The --port 3001 ensures the application binds correctly within the Docker container.
-
-Bash
-
+# 6. Run the Program
+# NOTE: Paste your Hugging Face token when prompted, then press Enter.
 uv run run.py --port 3001
-Hugging Face Token: When prompted, paste your Hugging Face token and press Enter. Note: The input will be invisible for security; this is normal.
+3. 🔐 SSH Tunnel Connection (Local PC)
+IMPORTANT: Open a new terminal (CMD/PowerShell/Terminal) on your local computer. This terminal must remain open while you use CodeAssist.
 
-2. 🔐 Connect via SSH Tunnel (Local PC Steps)
-This step is critical. The web interface is only accessible through a secure SSH tunnel from your local computer.
-
-Standard Connection (Password/Default Key)
-Open a new terminal (CMD/PowerShell/Terminal) on your local computer.
+Option A: Standard SSH Connection (Password or Default Key)
+Copy and paste this command into your local terminal:
 
 Bash
 
-# General SSH Tunnel Command
+# Replace [YOUR_VPS_IP] with the IP address of your server
 ssh -L 3001:localhost:3001 -L 8000:localhost:8000 -L 8008:localhost:8008 root@[YOUR_VPS_IP]
-Key-Based Connection (AWS/GCP/Azure - using .pem or .ppk)
-If your VPS uses a key file (.pem or similar) for authentication (common with cloud providers like Google Cloud or AWS), you must specify the key file path using the -i flag.
-
-Example for Windows/Linux/macOS:
+Option B: Key-Based SSH Connection (AWS/GCP/Azure .pem key)
+Copy and paste this command into your local terminal:
 
 Bash
 
-# Key-Based SSH Tunnel Command
+# 1. Replace [PATH/TO/YOUR.pem] with the path to your key file (e.g., C:/Users/user/.ssh/key.pem)
+# 2. Replace [YOUR_SSH_USER] (e.g., ec2-user, ubuntu, yourname)
+# 3. Replace [YOUR_VPS_IP]
 ssh -i "[PATH/TO/YOUR.pem]" -L 3001:localhost:3001 -L 8000:localhost:8000 -L 8008:localhost:8008 [YOUR_SSH_USER]@[YOUR_VPS_IP]
-Example of a key file path: C:/Users/khush/.ssh/khushal1.pem
+4. 🌐 Access & Complete Training
+4.1. Access the Web Interface
+Once the SSH tunnel is active, open your local browser to:
 
-Replace [YOUR_VPS_IP] with your VPS's IP address.
-
-Replace [YOUR_SSH_USER] with your VPS username (e.g., ec2-user, ubuntu, khushal1).
-
-Leave the local terminal window open and running for the entire session.
-
-3. 🌐 Access the Interface
-3.1. Open the Web Interface
-On your local computer, open a web browser and navigate to:
+Copy and paste this URL:
 
 http://localhost:3001
-You are now securely connected to the CodeAssist web interface running on your VPS.
+4.2. Initiate Training
+After completing one or more code tasks in the web interface:
 
-4. ✅ Finish & Training
-4.1. Initiate Training
-After you have completed at least one code task in the web interface:
-
-Return to your VPS terminal (the one inside the screen -S codeassist session).
+Return to your VPS terminal (the one running inside the screen session).
 
 Press Ctrl + C to stop the uv run run.py process.
 
-The training process will automatically begin. Allow this process time to complete.
-
-4.2. Verification
-Check your Hugging Face account to confirm that the new model has been successfully uploaded. If the new model is visible, the entire process is complete.
-
-🛠️ One-Click Copy Section
-For quick setup, copy and paste the commands below into your VPS terminal.
-
-1. VPS Setup Commands
-Bash
-
-# Create screen session
-screen -S codeassist
-# Install UV
-curl -LsSf [https://astral.sh/uv/install.sh](https://astral.sh/uv/install.sh) | sh
-# Reload Bash
-source ~/.bashrc
-# Clone repo and navigate
-git clone [https://github.com/gensyn-ai/codeassist.git](https://github.com/gensyn-ai/codeassist.git)
-cd codeassist
-# <<< IMPORTANT: Manually edit compose.yml here! >>>
-# Change 3000:3000 to 3001:3000 using nano compose.yml
-# Run program (Paste Hugging Face token when prompted)
-uv run run.py --port 3001
-2. Local PC Tunnel Commands
-A. Standard Connection:
-
-Bash
-
-ssh -L 3001:localhost:3001 -L 8000:localhost:8000 -L 8008:localhost:8008 root@[YOUR_VPS_IP]
-B. Key-Based Connection (e.g., AWS/GCP):
-
-Bash
-
-ssh -i "[PATH/TO/YOUR.pem]" -L 3001:localhost:3001 -L 8000:localhost:8000 -L 8008:localhost:8008 [YOUR_SSH_USER]@[YOUR_VPS_IP]
-C. Web Interface URL:
-
-http://localhost:3001
+The training process will start automatically. Wait for it to finish. Check your Hugging Face account to confirm the new model has been uploaded.
