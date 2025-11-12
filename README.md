@@ -10,11 +10,11 @@ This document outlines the professional deployment and operational procedure for
 
 ### 1. 🛠️ VPS Preparation: Dependencies and Setup
 
-This initial phase ensures all required software (Docker and package manager) is correctly installed.
+This initial phase installs all required software, including Docker and the UV package manager, on your VPS.
 
-#### 1.1. Install Docker and Docker Compose Plugins
+#### 1.1. Install Docker and System Dependencies
 
-Execute the following commands on your VPS to install the necessary Docker components.
+Execute the following block of commands on your VPS to install Docker and configure user permissions.
 
 **➡️ Copy and paste the entire block below into your VPS terminal:**
 
@@ -42,12 +42,13 @@ sudo apt install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin d
 # 5. Add current user to the docker group for non-root execution
 sudo usermod -aG docker "$USER"
 
-echo "--- Docker installation complete. It is highly recommended to close your SSH session and reconnect to apply the user group changes! ---"
-
-1.2. Install UV and Clone Repository
-These commands set up the project environment.
+echo "--- Docker installation complete. It is highly recommended to close your SSH session and reconnect to apply user group changes! ---"
+1.2. Install UV, Clone Repository, and Configure Ports
+These commands set up the project environment and prepare the configuration files for port 3001.
 
 ➡️ Copy and paste the entire block below into your VPS terminal:
+
+Bash
 
 # 1. Start a persistent screen session
 screen -S codeassist
@@ -61,52 +62,79 @@ source ~/.bashrc
 # 4. Clone the CodeAssist repository
 git clone [https://github.com/gensyn-ai/codeassist.git](https://github.com/gensyn-ai/codeassist.git)
 cd codeassist
+⚠️ Manual Configuration Step 1: Edit compose.yml
 
-# 5. Modify compose.yml for host port 3001 (Avoids conflicts with port 3000)
-# Uses sed for non-interactive editing: 3000:3000 -> 3001:3000
-sed -i 's/3000:3000/3001:3000/g' compose.yml
+Open the Docker Compose file to change the host port:
 
-# 6. Execute the application
+Bash
+
+nano compose.yml
+Find the ports: section and change the HOST port from 3000:3000 to 3001:3000:
+
+YAML
+
+    ports:
+      - 3001:3000  # <-- CHANGE THIS LINE
+Press Ctrl + X, then Y, then Enter to save and exit nano.
+
+⚠️ Manual Configuration Step 2: Edit run.py (Optional, for robustness)
+
+Open the application run file to ensure the internal service port mapping is set to 3001.
+
+Bash
+
+nano run.py
+Search for the section exposing the web UI port (usually near the top) and change the hardcoded port from 3000 to 3001:
+
+Python
+
+# expose web ui port
+"3000/tcp": 3001,  # <-- Change the second number (container port) if necessary, or the host port number.
+                   #    A common change here is to ensure the host port is 3001 if the file uses 3000.
+Based on previous drafts, ensure the line related to port exposure has a 3001 visible. Press Ctrl + X, then Y, then Enter to save and exit nano.
+
+➡️ Execute the application:
+
+Bash
+
 # NOTE: The application will prompt for your Hugging Face Access Token. 
 # Input will be hidden for security (invisible typing).
 uv run run.py --port 3001
-
-2. 🔐 Secure Local Access via SSH Tunnel
-The CodeAssist interface is designed to be accessed only via a secure local port-forwarding connection. This step must be performed on your LOCAL MACHINE.
-
-Requirement: This terminal must remain open and connected for the duration of your session.
+2. 🔐 Secure Local Access via SSH Tunnel (Local Machine)
+The CodeAssist interface is only accessible via a secure local port-forwarding connection. This step must be performed on your LOCAL MACHINE in a new terminal window that must remain open.
 
 2.1. Tunnel using Password Authentication (or default SSH key)
 ➡️ Copy and paste the block below into your Local Terminal:
 
+Bash
+
 # Replace [YOUR_VPS_IP] with the server's public IP address.
 ssh -L 3001:localhost:3001 -L 8000:localhost:8000 -L 8008:localhost:8008 root@[YOUR_VPS_IP]
-
-2.2. Tunnel using Key-Based Authentication (.pem file - common for Cloud VPS)
-If your VPS uses a private key (.pem, .ppk), you must explicitly specify its path.
+2.2. Tunnel using Key-Based Authentication (.pem file - Cloud VPS)
+If your VPS uses a private key (e.g., AWS, GCP), use the -i flag to specify the key path.
 
 ➡️ Copy and paste the block below into your Local Terminal:
 
 Bash
 
-# 1. Replace [PATH/TO/YOUR.pem] (e.g., C:/Users/user/.ssh/key.pem)
+# 1. Replace [PATH/TO/YOUR.pem] (e.g., C:/Users/user/.ssh/mykey.pem)
 # 2. Replace [YOUR_SSH_USER] (e.g., ec2-user, ubuntu, yourname)
 # 3. Replace [YOUR_VPS_IP]
 ssh -i "[PATH/TO/YOUR.pem]" -L 3001:localhost:3001 -L 8000:localhost:8000 -L 8008:localhost:8008 [YOUR_SSH_USER]@[YOUR_VPS_IP]
 3. ✅ Operation and Training Cycle
 3.1. Access the Web Interface
-Once the local tunnel is established, access the interface securely on your local browser:
+Once the local tunnel is established and the application is running on the VPS, access the interface securely:
 
 ➡️ Access URL:
 
 http://localhost:3001
 3.2. Initiate Training and Verification
-After you have completed one or more assigned code tasks in the web interface:
+After you have successfully completed one or more assigned code tasks in the web interface:
 
-Return to your VPS terminal (the one running CodeAssist inside the screen session).
+Return to your VPS terminal (the one inside the screen session).
 
 Press Ctrl + C to terminate the uv run run.py process.
 
 The model training and upload process will commence automatically.
 
-Verification: Confirm the operation is successful by checking your Hugging Face account for the newly uploaded model artifact.
+Verification: Confirm the successful operation by checking your Hugging Face account for the newly uploaded model artifact.
